@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบตรวจจับสถานะที่จอดรถ</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background-color: #fff;
+            padding: 2em;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+        /* รูปแบบสำหรับแสดงเวลา */
+        #currentTime {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 20px;
+        }
+        /* ซ่อนส่วนแสดงรูปภาพและจำนวนรถ */
+        #image-display, #carCountMessage {
+            display: none; 
+        }
+
+        #color-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px 0;
+        }
+        #color-box {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: 5px solid #333;
+            transition: background-color 0.5s;
+        }
+        #status-label {
+            margin-top: 15px;
+            font-weight: bold;
+            font-size: 1.5em;
+            color: #333;
+        }
+        #advice-box {
+            margin-top: 2em;
+            padding: 1.5em;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            text-align: left;
+            font-size: 1.1em;
+        }
+        button {
+            padding: 12px 25px;
+            font-size: 1.1em;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 20px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>สถานะปัจจุบันของพื้นที่จอดรถ</h1>
+        
+        <div id="currentTime"></div>
+        
+        <button id="refreshButton">🔄 รีเฟรชสถานะ</button>
+
+        <div id="image-display">
+            <img src="{{ url_for('serve_image', filename=image_name) }}" alt="ที่จอดรถ" id="currentImage">
+        </div>
+        <div id="result">
+            <h2 id="carCountMessage" style="display: none;">จำนวนรถยนต์ที่ตรวจจับได้: {{ car_count }} คัน</h2>
+            
+            <div id="color-display">
+                <div id="color-box" style="background-color: {{ status_color }};"></div>
+                <p id="status-label">สถานะ: สี{{ status_color.upper() }}</p>
+            </div>
+
+            <div id="advice-box">
+                <p>คำแนะนำ: <span id="advice-text"></span></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ฟังก์ชันสำหรับสร้างข้อความคำแนะนำ
+        function getAdvice(statusColor) {
+            switch (statusColor.toLowerCase()) {
+                case 'red':
+                    return 'พื้นที่จอดรถใกล้เต็ม กรุณาหลีกเลี่ยงบริเวณนี้';
+                case 'yellow':
+                    return 'พื้นที่จอดรถยังมีที่จอดบางส่วน';
+                case 'green':
+                    return 'พื้นที่จอดรถว่าง สามารถเข้าจอดได้';
+                default:
+                    return 'ไม่สามารถระบุสถานะได้';
+            }
+        }
+        
+        // ฟังก์ชันสำหรับแสดงและอัปเดตเวลาปัจจุบัน
+        function updateTime() {
+            const now = new Date();
+            const options = { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+            };
+            const timeString = now.toLocaleTimeString('th-TH', options);
+            document.getElementById('currentTime').textContent = timeString;
+        }
+
+        // กำหนดคำแนะนำเริ่มต้นและเริ่มอัปเดตเวลา
+        const initialColor = document.getElementById('color-box').style.backgroundColor;
+        document.getElementById('advice-text').textContent = getAdvice(initialColor);
+        
+        updateTime(); // แสดงเวลาทันทีเมื่อโหลดหน้า
+        setInterval(updateTime, 1000); // อัปเดตเวลาทุก 1 วินาที
+
+        // จัดการเมื่อกดปุ่ม "รีเฟรชสถานะ"
+        document.getElementById('refreshButton').addEventListener('click', function() {
+            fetch('/next_image', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload(); 
+                } else {
+                    alert('ไม่สามารถเปลี่ยนรูปภาพได้: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์');
+                console.error('Error:', error);
+            });
+        });
+    </script>
+</body>
+</html>
